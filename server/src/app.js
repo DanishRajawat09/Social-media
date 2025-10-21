@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { CORS_ORIGIN, NODE_ENV } from "./config/envConfig.js";
+import userRouter from "./routes/user.routes.js";
 
 const app = express();
 
@@ -27,7 +28,7 @@ app.use((err, req, res, next) => {
   res.status(statusCode).json(response);
 });
 
-
+app.use("/user" , userRouter)
 
 
 export default app;

@@ -1,4 +1,7 @@
 import mongoose from "mongoose";
+import { JWT_ACCESSTOKEN_EXPIRY, JWT_ACCESSTOKEN_SECRET, JWT_REFRESHTOKEN_EXPIRY, JWT_REFRESHTOKEN_SECRET } from "../config/envConfig.js";
+import bcrypt from "bcrypt"
+import jwt from "jsonwebtoken"
 
 const userSchema = new mongoose.Schema(
   {
@@ -13,14 +16,14 @@ const userSchema = new mongoose.Schema(
       value: {
         type: String,
         trim: true,
-        unique: true,
+        // unique: true,
         lowercase: true,
-        validate: {
-          validator: function (value) {
-            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-          },
-          message: "enter an velid email",
-        },
+        // validate: {
+        //   validator: function (value) {
+        //     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+        //   },
+        //   message: "enter an velid email", 
+        // },
       },
       isVarified: {
         type: Boolean,
@@ -46,7 +49,7 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
+    
       trim: true,
       validate: {
         validator: function (value) {
@@ -58,5 +61,32 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+
+  this.password = await bcrypt.hash(this.password, 10);
+  
+  next();
+});
+
+userSchema.methods.isPasswordCorrect = async function (password) {
+  return await bcrypt.compare(password, this.password);
+};
+
+userSchema.methods.generateAccessToken = async function () {
+  return jwt.sign(
+    { _id: this._id, email: this.email},
+    JWT_ACCESSTOKEN_SECRET,
+    { expiresIn: JWT_ACCESSTOKEN_EXPIRY }
+  );
+};
+
+userSchema.methods.generateRefreshToken = async function () {
+  return jwt.sign({ _id: this._id, contact: this.contact }, JWT_REFRESHTOKEN_SECRET, {
+    expiresIn: JWT_REFRESHTOKEN_EXPIRY,
+  });
+};
 
 export const User = mongoose.model("User", userSchema);

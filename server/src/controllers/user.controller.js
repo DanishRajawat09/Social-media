@@ -6,59 +6,51 @@ import {
   phoneRegex,
 } from "../utils/regexValidator.js";
 import { User } from "../models/user.models.js";
-import { ApiResponse } from "../utils/apiResponse.js";
+import {ApiResponse} from "../utils/apiResponse.js"
 export const registerUser = asyncHandler(async (req, res) => {
   const { emailContact, username, password } = req.body;
 
-  if (!emailContact) {
-    throw new ApiError(406, "please enter email or contact");
-  }
-  if (!username) {
-    throw new ApiError(406, " username is required");
-  }
-  if (!password) {
-    throw new ApiError(406, "password is required");
+  if (
+    [emailContact, username, password].some((item) => {
+      return !item ;
+    })
+  ) {
+    throw new ApiError(406, "all fields are required");
   }
 
   if (!passwordRegex.test(password)) {
     throw new ApiError(
       406,
-      "password must be 8 charector and have capital latter and one small latter"
+      "password must 8 charectors and it have one capital latter one small latter"
     );
   }
 
+  if (!emailRegex.test(emailContact) && !phoneRegex.test(emailContact)) {
+    throw new ApiError(406, "please enter valid email or contact");
+  }
+
+  const isEmail = emailRegex.test(emailContact);
+  const isContact = phoneRegex.test(emailContact);
+
   const data = {
-    username,
-email : {
-    value : ""
-},
-contact : {
-    value : ""
-},
-password
+    username: username.trim(),
+    email: isEmail ? { value: emailContact } : undefined,
+    contact: isContact ? { value: emailContact } : undefined,
+    password: password.trim(),
   };
 
-  if (!emailRegex.test(emailContact) && !phoneRegex.test(emailContact)) {
-    throw new ApiError(406, "plz enter valid email or contact");
+  const existingUser = await User.findOne({$or:[{"email.value" : emailContact} , {"contact.value" : emailContact} ,{ username : username}]  });
+  if (existingUser) {
+    throw new ApiError(
+      409,
+      "accout is already created from this username or email or contact, please login"
+    );
   }
 
-  if (emailRegex.test(emailContact)) {
-    data.email.value = emailContact;
-  }
-
-  if (phoneRegex.test(emailContact)) {
-    data.contact.value = emailContact;
-  }
-console.log(data);
-
-  const user = await User.create(data);
+  const user = await User.create(data)
   if (!user) {
-    throw new ApiError(500, "user create gadbad karra hai");
+    throw new ApiError(500 , "your account cannot be ceated , something went wrong ")
   }
 
- 
-
-  res
-    .status(201)
-    .json(new ApiResponse(201, { data: user }, "user created successFully"));
+  res.status(201).json(new ApiResponse(201 , user , "user is created successFully"))
 });
